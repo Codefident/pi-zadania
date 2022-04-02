@@ -89,10 +89,10 @@ double gauss_simplified(double A[][SIZE], int n)
 	{
 		for (k = i + 1; k < n; k++)
 		{
-			double term = A[k][i] / A[i][i];
+			double m = A[k][i] / A[i][i];
 			for (j = 0; j < n; j++)
 			{
-				A[k][j] = A[k][j] - term * A[i][j];
+				A[k][j] = A[k][j] - m * A[i][j];
 			}
 		}
 	}
@@ -159,14 +159,22 @@ double gauss(double A[][SIZE], const double b[], double x[], const int n,
 		for (int r = i + 1; r < n; r++)
 		{
 			if (A[swap[i]][i] == 0)
+			{
 				det_sign *= swapRows(A, swap, n);
+				double max = 0;
+				for (int i = 0; i < n; i++)
+					if (A[i][i] > max)
+						max = A[i][i];
+				if (max < eps)
+					return 0;
+			}
 
-			double term = -A[swap[r]][i] / A[swap[i]][i];
+			double m = -A[swap[r]][i] / A[swap[i]][i];
 
 			for (int c = i; c < n; c++)
-				A[swap[r]][c] += term * A[swap[i]][c];
+				A[swap[r]][c] += m * A[swap[i]][c];
 
-			db[swap[r]] += term * db[swap[i]];
+			db[swap[r]] += m * db[swap[i]];
 		}
 	}
 
@@ -209,7 +217,88 @@ double gauss(double A[][SIZE], const double b[], double x[], const int n,
 // 5.4
 // Returns the determinant; B contains the inverse of A (if det(A) != 0)
 // If max A[i][i] < eps, function returns 0.
-double matrix_inv(double A[][SIZE], double B[][SIZE], int n, double eps);
+double matrix_inv(double A[][SIZE], double B[][SIZE], int n, double eps)
+{
+	int swap[n];
+
+	for (int i = 0; i < n; i++)
+		swap[i] = i;
+
+	int det_sign = 1;
+
+	// B matrix
+	for (int i = 0; i < n; i++)
+	{
+		for (int j = 0; j < n; j++)
+		{
+			B[i][j] = 0;
+		}
+		B[i][i] = 1;
+	}
+
+	// gauss
+	for (int i = 0; i < n - 1; i++)
+	{
+		for (int r = i + 1; r < n; r++)
+		{
+			if (A[swap[i]][i] == 0)
+			{
+				det_sign *= swapRows(A, swap, n);
+
+				double max = 0;
+				for (int i = 0; i < n; i++)
+					if (A[i][i] > max)
+						max = A[i][i];
+				if (max < eps)
+					return 0;
+			}
+
+			double m = -A[swap[r]][i] / A[swap[i]][i];
+
+			for (int c = i; c < n; c++)
+				A[swap[r]][c] += m * A[swap[i]][c];
+
+			for (int c = 0; c < n; c++)
+				B[swap[r]][c] += m * B[swap[i]][c];
+		}
+	}
+
+	// determinant
+	double det = A[0][0];
+	for (int i = 1; i < n; i++)
+		det *= A[swap[i]][i];
+
+	det *= det_sign;
+
+	if (det == 0)
+		return 0;
+
+	// turn the upper triangle of matrix to zero
+	// and make all diagonal values = 1
+	// we start from bottom-right
+	for (int i = n - 1; i >= 0; i--)
+	{
+		double m = 1 / A[swap[i]][i];
+		A[swap[i]][i] = 1;
+
+		// apply this to the same row of B matrix
+		for (int c = 0; c < n; c++)
+			B[swap[i]][c] *= m;
+
+		// zero all values above A[i][i]
+		for (int r = i - 1; r >= 0; r--)
+		{
+			m = -A[swap[r]][i];
+			for (int c = 0; c < n; c++)
+			{
+				A[swap[r]][c] += A[swap[i]][c] * m;
+				B[swap[r]][c] += B[swap[i]][c] * m;
+			}
+		}
+	}
+
+	return det;
+}
 
 int main(void)
 {
@@ -244,12 +333,12 @@ int main(void)
 		if (det)
 			print_vector(x, n);
 		break;
-	// case 4:
-	// 	scanf("%d", &n);
-	// 	read_mat(A, n, n);
-	// 	printf("%.4f\n", matrix_inv(A, B, n, eps));
-	// 	print_mat(B, n, n);
-	// 	break;
+	case 4:
+		scanf("%d", &n);
+		read_mat(A, n, n);
+		printf("%.4f\n", matrix_inv(A, B, n, eps));
+		print_mat(B, n, n);
+		break;
 	default:
 		printf("NOTHING TO DO FOR %d\n", to_do);
 		break;
